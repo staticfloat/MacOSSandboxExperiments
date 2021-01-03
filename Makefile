@@ -7,6 +7,10 @@ TMPDIR := $(APP_DIR)/tmp
 USER := $(shell id -u -n)
 HOME := $(APP_DIR)/home
 
+ifeq ($(shell which envsubst),)
+$(error Must install envsubst!)
+endif
+
 export JULIA_VER BUILD_DIR JULIA_DEPOT_PATH APP_DIR USER TMPDIR HOME
 
 default: julia-$(JULIA_VER)/bin/julia
@@ -24,6 +28,16 @@ test-%: $(JULIA) | $(JULIA_DEPOT_PATH) $(TMPDIR)
 	$(JULIA) -e 'Base.runtests(["$*"])'
 
 $(BUILD_DIR)/%.sb: %.sb.template | $(BUILD_DIR)
+	# We need to construct a path of directories from `/` to `${APP_DIR}`,
+	# allowing read permissions so that Julia can `stat()` its own parental chain.
+	A=$(APP_DIR); \
+	APP_DIR_ROOT_CHAIN=""; \
+	while [ "$${A}" != "$$(dirname $${A})" ]; do \
+		APP_DIR_ROOT_CHAIN+="(literal \"$${A}\")\n"; \
+		A=$$(dirname "$${A}"); \
+	done; \
+	echo "APP_DIR_ROOT_CHAIN:"; \
+	echo "$${APP_DIR_ROOT_CHAIN}"; \
 	envsubst < $< > $@
 
 sandbox-%: $(JULIA) $(BUILD_DIR)/julia_tests.sb | $(JULIA_DEPOT_PATH) $(TMPDIR) $(HOME)

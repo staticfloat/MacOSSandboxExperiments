@@ -15,13 +15,16 @@
     )
 
 (allow file-read*
-    (literal "/Users/${USER}/src/sandbox_testing")
-    (literal "/Users/${USER}/src")
-    (literal "/Users/${USER}")
-    (literal "/Users")
-    (literal "/")
-    (subpath "/Users/${USER}/Library/Preferences/")
+    ;; We of course need to be able to read the Julia installation
     (subpath "${APP_DIR}")
+
+    ;; We need to be able to walk up from `${APP_DIR}` to its parent, all the way up to `/`.
+    ${APP_DIR_ROOT_CHAIN}
+
+    ;; There are a number of preferences that get read by Cocoa stuff.  Perhaps we should single them out as literals?
+    (subpath "/Users/${USER}/Library/Preferences/")
+
+    ;; Add system-level dependencies and whatnot.
     (subpath "/usr")
     (subpath "/System")
     (subpath "/Library")
