@@ -33,11 +33,10 @@ $(BUILD_DIR)/%.sb: %.sb.template | $(BUILD_DIR)
 	A=$(APP_DIR); \
 	APP_DIR_ROOT_CHAIN=""; \
 	while [ "$${A}" != "$$(dirname $${A})" ]; do \
-		APP_DIR_ROOT_CHAIN+="(literal \"$${A}\")\n"; \
+		APP_DIR_ROOT_CHAIN+="(literal \"$${A}\")"; \
 		A=$$(dirname "$${A}"); \
 	done; \
-	echo "APP_DIR_ROOT_CHAIN:"; \
-	echo "$${APP_DIR_ROOT_CHAIN}"; \
+	export APP_DIR_ROOT_CHAIN; \
 	envsubst < $< > $@
 
 sandbox-%: $(JULIA) $(BUILD_DIR)/julia_tests.sb | $(JULIA_DEPOT_PATH) $(TMPDIR) $(HOME)
@@ -48,3 +47,5 @@ trace-%: $(JULIA) $(BUILD_DIR)/trace.sb | $(JULIA_DEPOT_PATH) $(TMPDIR) $(HOME)
 
 print-%:
 	@echo '$*=$($*)'
+
+.PRECIOUS: $(BUILD_DIR)/%.sb
