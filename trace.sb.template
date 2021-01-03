@@ -1,0 +1,5 @@
+(version 1)
+
+(debug all)
+(trace "output.sb")
+(deny default)
