@@ -6,23 +6,15 @@ To compare against unsandboxed execution, run `test-FOO`.
 
 # Known issues:
 
-The following tests fail on both `test-FOO` and `sandbox-FOO`:
-
-- `cmdlineargs`: Unknown, arguments seem to be getting lost, probably because `startup-file` is interacting badly with some environment variables.  Fails from direct execution as well.
-- `REPL`: Unknown, fails from direct execution as well.
-
-The following tests fail only on `sandobx-FOO`:
-
-- `InteractiveUtils`: ignores `HOME`/`JULIA_DEPOT_PATH`, tries to access `~/.julia`.
-- `SuiteSparse`: ignores `HOME`/`JULIA_DEPOT_PATH`, tries to access `~/.julia`.
+With a few patches merged, this is now working as expected!
 
 # Workarounds in place:
 
 The following tests have strange behavior that we should probably fix:
 
-- `loading` test requires writing to `share/julia/test/depot`
 - `cmdlineargs` test requires writing to `share/julia/test/testhelpers`
 - `get_anon_hdl()` ignores `$TMPDIR`, instead [always writing to `/tmp`](https://github.com/JuliaLang/julia/blob/v1.5.3/src/cgmemmgr.cpp#L197-L198)
+- `Profile` looks up lineinfo data which uses paths embedded during build, so it requires read access to paths that most likely do not exist (e.g. `/Users/julia/buildbot/worker/package_macos64/build`).
 
 # Reading list:
 

@@ -24,27 +24,34 @@
     ;; There are a number of preferences that get read by Cocoa stuff.  Perhaps we should single them out as literals?
     (subpath "/Users/${USER}/Library/Preferences/")
 
+    ;; The lineinfo paths embedded within the system image are going to try and load these paths; EPERM is fatal,
+    ;; while ENOENT is not, so let the process get an ENOENT during the the `Profile` tests.
+    (subpath "/Users/julia/buildbot/worker/package_macos64/build")
+
+    ;; We invoke `curl` which wants to load its certificate stores from `/private/etc/ssl`
+    (subpath "/private/etc/ssl")
+
     ;; Add system-level dependencies and whatnot.
     (subpath "/usr")
     (subpath "/System")
     (subpath "/Library")
     (subpath "/dev")
     (subpath "/etc")
-    (subpath "/private/var/db/dyld")
+    (subpath "/private/var/")
     )
 
 (allow file*
     (subpath "/dev")
     (subpath "${JULIA_DEPOT_PATH}")
     (subpath "${TMPDIR}")
-    ;; `loading` test requires write privileges to a directory within `share` ?!
-    (subpath "${APP_DIR}/share/julia/test/depot")
-    ;; `cmdlineargs` test too
-    (subpath "${APP_DIR}/share/julia/test/testhelpers")
+
     ;; Julia doesn't honor `$TMPDIR` when creating `julia-codegen-XXXX` files
     ;; https://github.com/JuliaLang/julia/blob/v1.5.3/src/cgmemmgr.cpp#L197-L198
     (regex #"^/tmp/julia-codegen-[0-9]+-[a-zA-Z0-9]+")
     (regex #"^/private/tmp/julia-codegen-[0-9]+-[a-zA-Z0-9]+")
+
+    ;; Keychain access requires R/W access to a path in /private/var/folders whose path name is difficult to know beforehand
+    (subpath "/private/var/folders")
     )
 
 (allow job-creation
@@ -63,3 +70,4 @@
 (allow network-outbound)
 (allow network-inbound)
 (allow signal)
+(allow system-socket)
