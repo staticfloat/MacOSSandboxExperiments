@@ -12,7 +12,6 @@ Base.print(io::IO, res::SandboxPath) = print(io, "(path \"$(res.path)\")")
 struct SandboxSubpath <: SandboxResource
     path::String
 end
-SandboxResource(path::SubstitutionString) = SandboxSubpath(path.string)
 Base.print(io::IO, res::SandboxSubpath) = print(io, "(subpath \"$(res.path)\")")
 
 struct SandboxRegex <: SandboxResource
@@ -21,8 +20,14 @@ end
 SandboxResource(path::Regex) = SandboxRegex(path.pattern)
 Base.print(io::IO, res::SandboxRegex) = print(io, "(regex #\"$(res.path)\")")
 
-abstract type SandboxRule; end
+struct SandboxSyscall <: SandboxResource
+    name::String
+end
+Base.print(io::IO, res::SandboxSyscall) = print(io, "(syscall-number $(res.name))")
 
+
+
+abstract type SandboxRule; end
 struct SandboxGlobalRule <: SandboxRule
     name::String
 end
@@ -44,7 +49,6 @@ function Base.print(io::IO, rule::SandboxScopedRule)
 end
 
 
-
 struct MacOSSandboxConfig
     # Usually something like `"bsd.sb"`
     parent_config::Union{Nothing,String}
@@ -57,7 +61,7 @@ struct MacOSSandboxConfig
 
     function MacOSSandboxConfig(;rules::Vector{<:SandboxRule} = SandboxRule[],
                                  parent_config::Union{Nothing,String} = "bsd.sb",
-                                 debug::Bool = false,
+                                 debug::Bool = true,
                                 )
         return new(parent_config, rules, debug)
     end
@@ -133,6 +137,15 @@ function generate_julia_test_sandbox(io::IO, julia_exe_path::String;
                 # Running Julia's test suite requires IPC/shared memory mechanisms as well
                 "ipc-posix-sem", "ipc-sysv-shm", "ipc-posix-shm",
 
+                # Calling `getcwd()` on a non-existant file path returns `EACCES` instead of `ENOENT`
+                # unless we give unrestricted `fcntl()` permissions.
+                "system-fsctl",
+
+                # For some reason, `access()` requires `process-exec` globally.
+                # I don't know why this is, and Apple's own scripts have a giant shrug
+                # in `/usr/share/sandbox/com.apple.smbd.sb` about this
+                "process-exec",
+
                 # We require network access
                 "network-bind", "network-outbound", "network-inbound", "system-socket",
             ]),
@@ -142,23 +155,6 @@ function generate_julia_test_sandbox(io::IO, julia_exe_path::String;
             #SandboxRule("job-creation", [
             #    SandboxSubpath(julia_dir),
             #]),
-
-            SandboxRule("process-exec*", [
-                # Allow process execution within the Julia directory (so we can spawn
-                # other Julia instances, for example)
-                SandboxSubpath(julia_dir),
-
-                # Allow ourselves to launch things like `curl`, `bash`, etc...
-                SandboxSubpath("/usr/local/bin"),
-                SandboxSubpath("/usr/local/sbin"),
-                SandboxSubpath("/usr/bin"),
-                SandboxSubpath("/usr/sbin"),
-                SandboxSubpath("/bin"),
-                SandboxSubpath("/sbin"),
-
-                # Allow launching of binaries provided by Homebrew
-                homebrew_paths...,
-            ]),
 
             # Provide read-only access to a bevvy of files
             SandboxRule("file-read*", [
@@ -174,8 +170,9 @@ function generate_julia_test_sandbox(io::IO, julia_exe_path::String;
                 dirname_chain(julia_dir)...,
 
                 # There are a number of preferences that get read by Cocoa stuff.
-                # Perhaps we should single them out as literals?
-                SandboxSubpath(joinpath(Base.homedir(), "Library", "Preferences")),
+                # LibGit2 wants to read its preferences, etc...
+                #SandboxSubpath(joinpath(Base.homedir(), "Library", "Preferences")),
+                SandboxSubpath(Base.homedir()),
 
                 # The lineinfo paths embedded within the system image are going to
                 # try and load these paths; EPERM is fatal, while ENOENT is not,
@@ -202,6 +199,7 @@ function generate_julia_test_sandbox(io::IO, julia_exe_path::String;
                 # Allow control over TTY devices
                 r"/dev/tty.*",
                 "/dev/ptmx",
+                "/private/var/run/utmpx",
 
                 # We need to be able to read/write our depot path
                 SandboxSubpath(Pkg.depots1()),
@@ -250,4 +248,3 @@ function run_sandboxed_julia(;julia_exe_path::AbstractString = first(Base.julia_
         run(`sandbox-exec -f $(sb_path) $(julia_exe_path) --color=yes`)
     end
 end
-

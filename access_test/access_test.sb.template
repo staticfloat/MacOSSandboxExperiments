@@ -1,0 +1,29 @@
+(version 1)
+
+(deny default)
+(debug deny)
+
+(import "bsd.sb")
+
+(allow process-exec
+    ;(subpath "/")
+    (subpath "$PWD")
+    (subpath "/usr/local/bin")
+    (subpath "/usr/bin")
+    (subpath "/bin")
+)
+
+(allow file*)
+(allow process-fork)
+(allow process-info*)
+(allow process-codesigning-status*)
+(allow sysctl-read)
+(allow mach-lookup)
+(allow ipc-posix-sem)
+(allow ipc-sysv-shm)
+(allow ipc-posix-shm)
+(allow network-bind)
+(allow network-outbound)
+(allow network-inbound)
+(allow signal)
+(allow system-socket)
